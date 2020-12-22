@@ -1,0 +1,7 @@
+default:
+  token:
+    iri_token: "hwTiQol6SJ8gsOiPFTefui23uFLlcgZ5lyRjhQxb"
+  aws:
+    id: "AKIAIA5GADOVZGH67MFA"
+    password: "bToSrZVX5b2nRk/tdhOjNt5vBaMv+eqI+kh8d+ta"
+    region: "eu-central-1"
