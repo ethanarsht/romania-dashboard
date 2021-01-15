@@ -3,6 +3,7 @@ library(httr)
 library(lubridate)
 library(jsonlite)
 library(aws.s3)
+library(aws.translate)
 library(udpipe)
 library(translateR)
 library(cld3)
@@ -13,10 +14,7 @@ Sys.setenv(
   "AWS_SECRET_ACCESS_KEY" = c$password,
   "AWS_DEFAULT_REGION" = c$region
 )
-
 t <- config::get('token')
-
-
 
 get_posts <- function(startdate, enddate, list_id, count, page) {
   
@@ -82,12 +80,41 @@ df_flat <- bind_cols(
   ) %>%
   select(-ends_with('1'))
 
-df_flat <- translate(
-  dataset = df_flat,
-  content.field = 'message',
-  google.api.key = 'AIzaSyAMUp0wWw31PEPoZXihWUNuN_jAqkgFs1U',
-  source.lang = 'ro',
-  target.lang = 'en')
+
+translation_list <- c()
+message_list <- c()
+account_list <- c()
+date_list <- c()
+id_list <- c()
+for (i in (1:nrow(df_flat))) {
+  id <- i
+  m <- df_flat[[i, 'message']]
+  a <- df_flat[[i, 'name']]
+  d <- df_flat[[i, 'date']]
+  if (!is.na(m)) {
+    t <- aws.translate::translate(m, from = "ro", to = "en")
+    
+    message_list <- c(message_list, m)
+    translation_list <- c(translation_list, t)
+    account_list <- c(account_list, a)
+    date_list <- c(date_list, d)
+    id_list <- c(id_list, id)
+    Sys.sleep(5)
+  }
+}
+
+translation_list <- unlist(translation_list)
+message_list <- message_list[!is.na(message_list)]
+
+df_translations <- data.frame(translatedContent = translation_list,
+                              message = message_list,
+                              name = account_list,
+                              date = date_list) %>%
+  mutate(
+    date = as_datetime(date)
+  )
+
+df_flat <- df_flat %>% left_join(df_translations)
 
 #applying natural language processing
 

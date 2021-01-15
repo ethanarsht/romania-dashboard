@@ -5,8 +5,9 @@ account: socialmediadashboardtest
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3354909
-bundleId: 4002119
+bundleId: 4100693
 url: https://socialmediadashboardtest.shinyapps.io/romania_dashboard/
-when: 1608223374.88484
+when: 1610730968.26377
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: crowdtangle_acquisition.R|crowdtangle_media_acquisition_ro.R|debug.log|english-ewt-ud-2.5-191206.udpipe|europeelects_acquisition.R|negative-words.txt|positive-words.txt

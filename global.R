@@ -10,6 +10,10 @@ library(wordcloud2)
 library(networkD3)
 library(treemap)
 library(d3treeR)
+library(shinycssloaders)
+library(shinyBS)
+library(DT)
+# library(udpipe)
 
 c <- config::get('aws')
 Sys.setenv(
@@ -25,7 +29,8 @@ party_names <- c(
   "PLUS",
   "Alianța pentru Unirea Românilor - AUR",
   "Partidul Mișcarea Populară",
-  "Partidul Social Democrat"
+  "Partidul Social Democrat",
+  "Alianța USR PLUS"
 )
 
 party_short_names <- c('RMDSZ', 
@@ -34,22 +39,24 @@ party_short_names <- c('RMDSZ',
                        'PLUS', 
                        'AUR', 
                        'PMP',
-                       'PSD')
+                       'PSD',
+                       'USRPLUS')
 party_colors <- c('#15803C',
                   '#FFDD00',
                   '#00aae7',
                   '#ff4f00',
                   '#FCC224',
                   '#0084CA',
-                  "#ED2128"
-                  )
+                  "#ED2128",
+                  NA)
 valid_colors <- c("green",
                   "yellow",
                   "blue",
                   "orange",
                   "yellow",
                   "green",
-                  "red")
+                  "red",
+                  NA)
 
 df_party_names <- data.frame(name = party_names, short_name = party_short_names, color = party_colors, valid_color = valid_colors)
 
@@ -128,7 +135,13 @@ wordcloud2a <- function (data, size = 1, minSize = 0, gridSize = 0, fontFamily =
   chart
 }
 
-extract_vector <- paste(posts_raw$name, collapse = '|')
+ads <- s3read_using(read_csv, object = 'romania_ads_archive.csv', bucket = 'iri-romania') %>%
+  left_join(df_party_names, by = c('page_name' = 'name')) %>%
+  mutate(
+    impressions_upper = coalesce(impressions_upper, impressions_lower)
+  )
+
+
   
 
 

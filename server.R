@@ -1,6 +1,6 @@
 
 
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
     
     options(shiny.sanitize.errors = TRUE)
     
@@ -19,7 +19,9 @@ shinyServer(function(input, output) {
                                  'date_range',
                                  label = 'Date range',
                                  start = max(posts_raw$date) - days(minus),
-                                 end = max(posts_raw$date)
+                                 end = max(posts_raw$date),
+                                 max = max(posts_raw$date),
+                                 min = min(posts_raw$date)
                              )
                      })
                  })
@@ -39,7 +41,7 @@ shinyServer(function(input, output) {
                          pickerInput(
                              'show_pages',
                              label = 'Pages to show',
-                             choices = pages,
+                             choices = c(pages, 'Alianța USR PLUS'),
                              selected = selected,
                              options = list(
                                  `actions-box` = TRUE,
@@ -141,7 +143,7 @@ shinyServer(function(input, output) {
             ) %>%
             arrange(desc(total_reactions))
         
-        top_media_engagement <- media_grouped[[1, 'name']]
+        top_media_engagement <- str_replace(media_grouped[[1, 'name']], 'Epoch Times Romania', 'Epoch Times')
         
         valueBox(
             top_media_engagement,
@@ -178,8 +180,8 @@ shinyServer(function(input, output) {
                 numericInput(
                     'roll',
                     label = 'Rolling averages',
-                    value = 3,
-                    min = 0
+                    value = 1,
+                    min = 1
                 ),
                 checkboxInput(
                     'compare',
@@ -226,7 +228,7 @@ shinyServer(function(input, output) {
                         `actions-box` = TRUE,
                         size = 10,
                         `selected-text-format` = "static",
-                        title = "Select parts of speech"
+                        title = "Select reaction"
                     )
                 )
             )
@@ -272,8 +274,8 @@ shinyServer(function(input, output) {
         extract_vector <- paste(c(df_posts()$name, party_short_names), collapse = '|')
 
         test <- media %>%
-            filter(date >= today() - 7
-                   & date <= today()) %>%
+            filter(date >= input$date_range[1]
+                   & date <= input$date_range[2]) %>%
             mutate(
                 media_mentions = str_extract_all(message, extract_vector)
             ) %>%
@@ -308,10 +310,19 @@ shinyServer(function(input, output) {
             filter(upos %in% input$input_pos)
     })
     
+    df_ads_react <- reactive({
+        ads %>%
+            filter(page_name %in% input$show_pages) %>%
+            filter(
+                ad_creation_time >= input$date_range[1]
+                & ad_creation_time <= input$date_range[2]
+            )
+    })
+    
     df_media_count <- reactive({
-        validate(
-            need(nrow(df_posts()) > 0, "No data on current selection")
-        )
+        # validate(
+        #     need(nrow(df_posts()) > 0, "No data on current selection")
+        # )
         data <- df_posts() %>%
             mutate(
                 source_link = str_extract(link, '//.*?/'),
@@ -397,7 +408,7 @@ shinyServer(function(input, output) {
             theme(legend.position = "none") +
             labs(
                 title = paste0(
-                    "Posts per day"
+                    "Posts per day: total"
                 )
             )
         
@@ -405,7 +416,13 @@ shinyServer(function(input, output) {
                                   tooltip = c('Name', 'Rolling average')) %>%
             layout(
                 width = 1000
-            ) 
+            ) %>%
+            config(
+                displaylogo = FALSE,
+                modeBarButtonsToRemove = list(
+                    'zoom2d', 'pan2d', 'select2d', 'autoScale2d', 'resetScale2d', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines'
+                )
+            )
         
     })
     
@@ -454,7 +471,7 @@ shinyServer(function(input, output) {
                 theme(legend.position = "none") +
                 labs(
                     title = paste0(
-                        "Posts per day"
+                        "Posts per day: by account"
                     )
                 )
             
@@ -462,7 +479,13 @@ shinyServer(function(input, output) {
                                       tooltip = c('Name', 'Rolling average')) %>%
                 layout(
                     width = 1000
-                ) 
+                ) %>%
+                config(
+                    displaylogo = FALSE,
+                    modeBarButtonsToRemove = list(
+                        'zoom2d', 'pan2d', 'select2d', 'autoScale2d', 'resetScale2d', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines'
+                    )
+                )
         } else {
             
             df_n_posts <- data.frame()
@@ -529,6 +552,12 @@ shinyServer(function(input, output) {
             plotly_output <- ggplotly(g, tooltip = c('Name', 'Rolling average')) %>%
                 layout(
                     width = 1000
+                ) %>%
+                config(
+                    displaylogo = FALSE,
+                    modeBarButtonsToRemove = list(
+                        'zoom2d', 'pan2d', 'select2d', 'autoScale2d', 'resetScale2d', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines'
+                    )
                 )
         }
         plotly_output
@@ -547,7 +576,7 @@ shinyServer(function(input, output) {
             df_radar <- df_posts() %>%
                 group_by(name) %>%
                 summarize_at(
-                    vars(ends_with('count')), sum
+                    vars(ends_with('count'), -likeCount), sum
                 ) %>%
                 select(-c('subscriberCount', 'shareCount', 'commentCount', 'thankfulCount')) %>%
                 mutate_at(
@@ -632,6 +661,12 @@ shinyServer(function(input, output) {
             plotly_output <- ggplotly(g, tooltip = c('Name', 'Rolling average')) %>%
                 layout(
                     width = 1000
+                ) %>%
+                config(
+                    displaylogo = FALSE,
+                    modeBarButtonsToRemove = list(
+                        'zoom2d', 'pan2d', 'select2d', 'autoScale2d', 'resetScale2d', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines'
+                    )
                 )
         }
         else {
@@ -701,6 +736,12 @@ shinyServer(function(input, output) {
             plotly_output <- ggplotly(g, tooltip = c('Name', 'Rolling average')) %>%
                 layout(
                     width = 1000
+                ) %>%
+                config(
+                    displaylogo = FALSE,
+                    modeBarButtonsToRemove = list(
+                        'zoom2d', 'pan2d', 'select2d', 'autoScale2d', 'resetScale2d', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines'
+                    )
                 )
         }
         plotly_output
@@ -737,10 +778,15 @@ shinyServer(function(input, output) {
             ungroup() %>%
             drop_na(mean_sentiment_polarity)
         
+        minsent <- min(df_sentiment$mean_sentiment_polarity)
+        if (minsent > 0) {
+            minsent <- 0
+        }
+        
         df_labels <- data.frame(
             label = c('Positive', 'Negative'),
             x = c(0, 0),
-            y = c(max(df_sentiment$mean_sentiment_polarity), min(df_sentiment$mean_sentiment_polarity))
+            y = c(max(df_sentiment$mean_sentiment_polarity), minsent)
         )
         
         g <- ggplot(df_sentiment, aes(x = short_name, y = mean_sentiment_polarity)) + 
@@ -748,6 +794,7 @@ shinyServer(function(input, output) {
             geom_label(data = df_labels, mapping = aes(x = x, y = y, label = label), hjust = -.01, vjust = 1) +
             bbplot::bbc_style() + 
             theme(
+                plot.title = element_text(size = 15),
                 axis.text.x = element_text(angle = 90, size = 10)
             ) +
             labs(
@@ -758,7 +805,7 @@ shinyServer(function(input, output) {
     
     output$cooccurences <- renderPlot({
         if (input$wordcloud_lang == TRUE) {
-            cooc <- cooccurrence(x = subset(corpus, upos %in% c('NOUN', 'ADJ')),
+            cooc <- udpipe::cooccurrence(x = subset(corpus, upos %in% c('NOUN', 'ADJ')),
                                  term = 'lemma',
                                  group = c('newId', 'sentence_id'))
             
@@ -772,7 +819,7 @@ shinyServer(function(input, output) {
                 theme(legend.position = "none") +
                 labs(title = "Cooccurrences within sentences", subtitle = "Nouns & Adjective")
         } else {
-            cooc <- cooccurrence(x = subset(df_cloud_en(), upos %in% c('NOUN', 'ADJ')),
+            cooc <- udpipe::cooccurrence(x = subset(df_cloud_en(), upos %in% c('NOUN', 'ADJ')),
                                  term = 'lemma',
                                  group = c('newId', 'sentence_id'))
             
@@ -801,14 +848,21 @@ shinyServer(function(input, output) {
                 geom_point(aes(alpha = 0.5)) +
                 bbplot::bbc_style() +
                 labs(
-                    title = 'Polling results'
+                    title = 'Polling results',
+                    subtitle = "Polling data source: Europe Elects"
                 ) +
                 scale_y_continuous(labels = scales::percent) +
                 theme(
                     legend.position = "none"
                 ) + 
                 geom_smooth(se = F)
-            plotly_output <- ggplotly(g, tooltip = c("text"))
+            plotly_output <- ggplotly(g, tooltip = c("text")) %>%
+                config(
+                    displaylogo = FALSE,
+                    modeBarButtonsToRemove = list(
+                        'zoom2d', 'pan2d', 'select2d', 'autoScale2d', 'resetScale2d', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines'
+                    )
+                )
             
             plotly_output
         })
@@ -823,15 +877,29 @@ shinyServer(function(input, output) {
                 ) %>%
                 ungroup() %>%
                 pivot_longer(cols = matches('likes|comments|shares'), names_to = "reaction", values_to = "count")
+
             
             if (input$reaction_select == "All") {
                 df_tree <- engagement_counts %>%
                     group_by(short_name) %>%
-                    summarize(count = sum(count))
+                    summarize(count = sum(count)) %>%
+                    ungroup() %>%
+                    mutate(
+                        prop = count / sum(count)
+                    ) %>%
+                    mutate(
+                        label = paste0(short_name, ': ', round(prop*100), '%')
+                    )
                 title_add <- "all reactions"
             } else {
                 df_tree <- engagement_counts %>%
-                    filter(reaction == paste0(str_to_lower(input$reaction_select), 's'))
+                    filter(reaction == paste0(str_to_lower(input$reaction_select), 's')) %>%
+                    mutate(
+                        prop = count / sum(count)
+                    ) %>%
+                    mutate(
+                        label = paste0(short_name, ': ', round(prop*100), '%')
+                    )
                 title_add <- str_to_lower(paste0(input$reaction_select, 's'))
             }
             
@@ -861,9 +929,10 @@ shinyServer(function(input, output) {
             fig <- plot_ly(
                 df_tree,
                 type = "treemap",
-                labels = ~short_name,
+                labels = ~label,
                 parents = NA,
-                values = ~count
+                values = ~count,
+                hoverinfo = c("label")
             ) %>%
                 layout(title = paste0('Proportion of ', title_add))
                 
@@ -891,6 +960,7 @@ shinyServer(function(input, output) {
         })
         
         output$account_share_sankey <- renderSankeyNetwork({
+            print(df_media_count())
 
             media <- df_media_count() %>%
                 group_by(name, source_name)%>%
@@ -914,5 +984,70 @@ shinyServer(function(input, output) {
                 NodeID = "name"
             )
             p
+        })
+        
+        output$ad_spend_line <- renderPlotly({
+            ad_spend <- df_ads_react() %>%
+                select(page_name, adlib_id, ad_delivery_start_time, ad_delivery_stop_time, spend_lower, spend_upper) %>%
+                group_by(page_name) %>%
+                arrange(ad_delivery_start_time) %>%
+                mutate(
+                    `Cumulative high-bound spend` = cumsum(spend_lower),
+                    `Cumulative low-bound spend` = cumsum(spend_upper),
+                    Name = page_name
+                )
+            
+            g <- ggplot(ad_spend, aes(fill = Name, x = ad_delivery_start_time, group = page_name)) +
+                geom_ribbon(
+                    aes(ymin = `Cumulative low-bound spend`, ymax = `Cumulative high-bound spend`)
+                ) + 
+                bbplot::bbc_style() +
+                scale_y_continuous(labels = scales::comma) +
+                theme(
+                    legend.position = "none"
+                ) + 
+                labs(
+                    title = "Cumulative spending on Facebook ads (RON)"
+                )
+            
+            ggplotly(g, tooltip = c("Name", "Cumulative high-bound spend", "Cumulative low-bound spend"))
+        })
+        
+        output$ad_scatter <- renderPlot({
+            combined <- df_ads_react() %>%
+                select(page_name, adlib_id, ad_delivery_start_time, 
+                       ad_delivery_stop_time, impressions_lower, impressions_upper,
+                       spend_lower, spend_upper) %>%
+                mutate(impressions_average = (impressions_lower + impressions_upper) / 2,
+                       spend_average = (spend_lower + spend_upper) / 2
+                )
+            
+            ggplot(combined, aes(x = impressions_average, y = spend_average, color = page_name)) +
+                geom_point(size = 3) +
+                bbplot::bbc_style() + 
+                theme(
+                    legend.position = 'right'
+                ) + 
+                labs(
+                    title = "Spend and impressions",
+                    x = 'Impressions',
+                    y = 'Spend'
+                ) + 
+                scale_x_continuous(labels = scales::comma)
+                       
+        })
+        
+        output$ad_table <- DT::renderDT({
+            combined <- df_ads_react() %>%
+                select(`Account name` = page_name,
+                       `Ad start` = ad_delivery_start_time,
+                       `Ad finish` = ad_delivery_stop_time,
+                       `Impressions (low bound)` = impressions_lower,
+                       `Impressions (high bound)` = impressions_upper,
+                       `Spend in RON (low bound)` = spend_lower,
+                       `Spend in RON (high bound` = spend_upper
+                       )
+            
+            DT::datatable(combined)
         })
 })
